@@ -1,34 +1,126 @@
-const Discord = require("discord.js"); //installing discord.js module and requiring it
-const config = require("./Storage/config.json"); // config files
-const db = require("quick.db");
+const { Client, MessageAttachment, Collection, MessageEmbed } = require('discord.js');
+const Discord = require('discord.js');
+const { PREFIX, DBL_API_KEY } = require('./config');
+const bot = new Client({ disableMentions: 'everyone' });
+const DBL = require('dblapi.js');
+const dbl = new DBL(DBL_API_KEY)
+const fs = require("fs");
+const db = require('quick.db');
+const jimp = require('jimp');
+const { Canvas } = require('canvas-constructor');
+const { createCanvas, loadImage } = require('canvas')
+const { GiveawaysManager } = require("discord-giveaways");
+const yaml = require("js-yaml");
+const { botlog } = yaml.load(fs.readFileSync("./config.yml"));
+bot.phone = new Collection();
+bot.commands = new Collection();
+bot.aliases = new Collection();
 
-const bot = new Discord.Client({
-  disableEveryone: true,
-  autoReconnect: true,
-  disabledEvents: ["TYPING_START"],
-  partials: ["MESSAGE", "CHANNEL", "GUILD_MEMBER", "REACTION"],
+["aliases", "commands"].forEach(x => bot[x] = new Collection());
+["console", "command", "event"].forEach(x => require(`./handler/${x}`)(bot));
+
+bot.categories = fs.readdirSync("./commands/");
+
+["command"].forEach(handler => {
+    require(`./handler/${handler}`)(bot);
 });
-bot.on("message", async (message) => {
-  if (
-    message.mentions.has(bot.user) &&
-    !message.mentions.has(message.guild.id)
-  ) {
-    let embed = new Discord.MessageEmbed()
-      .setColor("RANDOM")
-      .setTitle("t.help!")
-      .setURL("https://www.thisworldthesedays.com/ssdasdsadasds.html")
-      .setFooter("Powered by: JamesDev#0001!");
-    return message.channel.send(embed);
+bot.on('ready', () => {
+    setInterval(() => {
+        dbl.postStats(bot.guilds.cache.size);
+    }, 1800000);
+});
+
+bot.snipes = new Map();
+bot.on('messageDelete', function(message, channel){
+bot.snipes.set(message.channel.id,{
+    content:message.content,
+    author:message.author.tag,
+    image:message.attachments.first() ? message.attachments.first().proxyURL : null
+})
+})
+
+bot.on('messageReactionAdd', async (reaction, user) => {
+  if(user.partial) await user.fetch();
+  if(reaction.partial) await reaction.fetch();
+  if(reaction.message.partial) await reaction.message.fetch();
+
+  if (user.bot) return;
+  let ticketid = await db.get(`tickets_${reaction.message.guild.id}`);
+  if(!ticketid) return;
+  if(reaction.message.id == ticketid && reaction.emoji.name == '🎟️') {
+    db.add(`ticketnumber_${reaction.message.guild.id}`, 1)
+    let ticketnumber = await db.get(`ticketnumber_${reaction.message.guild.id}`)
+    if (ticketnumber === null) ticketnumber = "1"
+    reaction.users.remove(user);
+      reaction.message.guild.channels.create(`ticket-${ticketnumber}`, { 
+          permissionOverwrites: [
+              {
+                  id: user.id,
+                  allow: ["SEND_MESSAGES", "VIEW_CHANNEL"]
+              },
+              {
+                  id: reaction.message.guild.roles.everyone,
+                  deny: ["VIEW_CHANNEL"]
+              }
+          ],
+          type: 'text'
+      }).then(async channel => {
+        channel.send(`<@${user.id}>`)
+
+        let ticketmsg = await channel.send(new Discord.MessageEmbed()
+        .setTitle(`${user.username} Ticket`)
+        .setDescription("Our Staff Team Will Be With you soon\nTo Close Ticket React With 🔐")
+        .setFooter(reaction.message.guild.name)
+    );    
+
+            ticketmsg.react('🔐')
+            console.log(`${ticketmsg.id}`)
+            db.set(`closeticket_${reaction.message.guild.id}_${reaction.message.author.id}`, ticketmsg.id)
+      })
   }
 });
-  bot.commands = new Discord.Collection();
-  bot.aliases = new Discord.Collection();
-  bot.event = new Discord.Collection();
 
- 
+bot.on("guildCreate", guild => {
+    bot.channels.cache.get(botlog).send(`** NEW GUILD **\n Server: ${guild.name}\n Server ID: ${guild.id}`)
+});
+bot.on("guildRemove", guild => {
+    bot.channels.cache.get(botlog).send(`** GUILD REMOVED **\n Server: ${guild.name}\n Server ID: ${guild.id}`)
+});
 
-  bot.on('message', async message => {
+bot.on('messageReactionAdd', async (reaction, user) => {
+  if(user.partial) await user.fetch();
+  if(reaction.partial) await reaction.fetch();
+  if(reaction.message.partial) await reaction.message.fetch();
+
+  if (user.bot) return;
+  let ticketid = await db.get(`closeticket_${reaction.message.guild.id}_${reaction.message.author.id}`);
+  if(!ticketid) return;
+  if(reaction.message.id == ticketid && reaction.emoji.name == '🔐') {
+    db.add(`closedtickets_${reaction.message.guild.id}`, 1)
+    let closednumber = await db.get(`closedtickets_${reaction.message.guild.id}`)
+    reaction.message.channel.setName(`Closed-${closednumber}`)
+    reaction.users.remove(user);
+    reaction.message.channel.send(`**Ticket Closed**`)
+  await  reaction.message.channel.setTopic(`Closing.`)
+   reaction.message.channel.delete()
+  }
+});
+
+
+bot.on('message', async message => {
     let prefix;
+    if (message.author.bot || message.channel.type === "dm") return;
+        try {
+            let fetched = await db.fetch(`prefix_${message.guild.id}`);
+            if (fetched == null) {
+                prefix = PREFIX
+            } else {
+                prefix = fetched
+            }
+        } catch (e) {
+            console.log(e)
+    };
+  
     if (message.author.bot) return;
     if (message.channel.type === "dm") return;
 
@@ -153,26 +245,149 @@ bot.on("message", async (message) => {
     };
 });
 
+bot.on('message', async message => {
+    let prefix;
+        try {
+            let fetched = await db.fetch(`prefix_${message.guild.id}`);
+            if (fetched == null) {
+                prefix = PREFIX
+            } else {
+                prefix = fetched
+            }
+        } catch (e) {
+            console.log(e)
+    };
+    try {
+        if (message.mentions.has(bot.user) && !message.mentions.has(message.guild.id)) {
+                    return message.channel.send(`**My Prefix In This Server is - \`${prefix}\`**`)
+        }
+    } catch {
+        return;
+    };
+});
 
-  const loadCommands = require("./functions/commands.js");
-  const loadEvents = require("./functions/events.js");
+bot.on('message', async message => {
+  
+    try {
+        const hasText = Boolean(message.content);
+        const hasImage = message.attachments.size !== 0;
+        const hasEmbed = message.embeds.length !== 0;
+        if (message.author.bot || (!hasText && !hasImage && !hasEmbed)) return;
+        const origin = bot.phone.find(call => call.origin.id === message.channel.id);
+        const recipient = bot.phone.find(call => call.recipient.id === message.channel.id);
+        if (!origin && !recipient) return;
+        const call = origin || recipient;
+        if (!call.active) return;
+        await call.send(origin ? call.recipient : call.origin, message, hasText, hasImage, hasEmbed);
+    } catch {
+        return;
+    };
+});
 
-  const load = async () => {
-    await loadCommands.run(bot);
-    await loadEvents.run(bot);
-  };
 
-  bot.on("guildCreate", () => {
-    console.log(`I was just added to ${guild.name}`)
-    const embed = new Discord.RichEmbed()
-        .setAuthor(bot.user.username, bot.user.avatarURL)
-        .addField(`:wave: Welcome!`, `Thanks for adding Thickets to your server.`)
-        .addField(`Getting Started`, `First of all, this bot is still under development and is getting frequent changes. We are looking for developers.`)
-        .addField(`Use the command t.help to view all the commands!`)
-        .setColor(0x00ff00)
-        .setFooter(`Thanks for adding ${bot.user.username}, I wish you luck!`)
-    
-    guild.owner.send(embed)
-  })
-  load(); // load commands :D
-  bot.login(process.env.TOKEN);
+
+const GiveawayManagerWithOwnDatabase = class extends GiveawaysManager {
+
+    // This function is called when the manager needs to get all the giveaway stored in the database.
+    async getAllGiveaways(){
+        // Get all the giveaway in the database
+        return db.get("giveaways");
+    }
+
+    // This function is called when a giveaway needs to be saved in the database (when a giveaway is created or when a giveaway is edited).
+    async saveGiveaway(messageID, giveawayData){
+        // Add the new one
+        db.push("giveaways", giveawayData);
+        // Don't forget to return something!
+        return true;
+    }
+
+    async editGiveaway(messageID, giveawayData){
+        // Gets all the current giveaways
+        const giveaways = db.get("giveaways");
+        // Remove the old giveaway from the current giveaways ID
+        const newGiveawaysArray = giveaways.filter((giveaway) => giveaway.messageID !== messageID);
+        // Push the new giveaway to the array
+        newGiveawaysArray.push(giveawayData);
+        // Save the updated array
+        db.set("giveaways", newGiveawaysArray);
+        // Don't forget to return something!
+        return true;
+    }
+
+    // This function is called when a giveaway needs to be deleted from the database.
+    async deleteGiveaway(messageID){
+        // Remove the giveaway from the array
+        const newGiveawaysArray = db.get("giveaways").filter((giveaway) => giveaway.messageID !== messageID);
+        // Save the updated array
+        db.set("giveaways", newGiveawaysArray);
+        // Don't forget to return something!
+        return true;
+    }
+
+};
+if(!db.get("giveaways")) db.set("giveaways", []);
+// Create a new instance of your new class
+const manager = new GiveawayManagerWithOwnDatabase(bot, {
+    storage: false,
+    updateCountdownEvery: 5000,
+    default: {
+        botsCanWin: false,
+        exemptPermissions: [ "MANAGE_MESSAGES", "ADMINISTRATOR" ],
+        embedColor: "#FF0000",
+        reaction: "🎉"
+    }
+});
+bot.giveawaysManager = manager;
+// We now have a client.giveawaysManager property to manage our giveaways!
+
+bot.giveawaysManager.on("giveawayReactionAdded", (giveaway, member, reaction) => {
+    console.log(`${member.user.tag} entered giveaway #${giveaway.messageID} (${reaction.emoji.name})`);
+});
+
+bot.giveawaysManager.on("giveawayReactionRemoved", (giveaway, member, reaction) => {
+    console.log(`${member.user.tag} unreact to giveaway #${giveaway.messageID} (${reaction.emoji.name})`);
+});
+
+
+bot.on('guildMemberAdd', async member => {
+	const { createCanvas, loadImage } = require('canvas');
+	const channel = await db.fetch(`welcome_${member.guild.id}`);
+    if (!channel) return;
+	const applyText = (canvas, text) => {
+	canvas, `${member.displayName}!`
+};
+
+    const canvas = createCanvas(700, 250);
+    const ctx = canvas.getContext('2d');
+
+    const background = await loadImage('./Welcome2.png');
+    ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = '#74037b';
+    ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+    ctx.font = '28px sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('Welcome to the server,', canvas.width / 2.5, canvas.height / 3.5);
+
+    ctx.font = applyText
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(`${member.displayName}!`, canvas.width / 2.5, canvas.height / 1.8);
+
+    ctx.beginPath();
+    ctx.arc(125, 125, 100, 0, Math.PI * 2, true);
+    ctx.closePath();
+    ctx.clip();
+
+    const avatar = await loadImage(member.user.displayAvatarURL({ format: 'png' }));
+    ctx.drawImage(avatar, 25, 25, 200, 200);
+
+    const attachment = new Discord.MessageAttachment(canvas.toBuffer(), 'Welcome2.png');
+	member.guild.channels.cache.get(channel).send(`Welcome to the server, ${member}!`, attachment);
+});
+
+
+
+
+bot.login('Nzg1ODQxMTM4MDI3NDYyNjY2.X89tlw.sbZrpoVOWboiJE425PwtapIu7JM');

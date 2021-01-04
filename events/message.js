@@ -1,17 +1,24 @@
-const Discord = require("discord.js");
-const functions = require("../functions/functions.js");
+module.exports = async (client, message) => {
+  if (message.author.bot) return;
 
-module.exports = async (bot, message) => {
+  const prefixMention = new RegExp(`^<@!?${client.user.id}> `);
+  
+  const prefix = message.content.match(prefixMention) ? message.content.match(prefixMention)[0] : client.config.prefix;
 
-    let prefix = "t.";
+  if (message.content.indexOf(prefix) !== 0) return;
 
-    const args = message.content.split(/ +/g);
-    const command = args.shift().slice(prefix.length).toLowerCase();
-    const cmd = bot.commands.get(command) || bot.aliases.get(command);
+  const args = message.content.slice(prefix.length).trim().split(/ +/g);
+  
+  const command = args.shift().toLowerCase();
 
-    if(!message.content.toLowerCase().startsWith(prefix) || !message.guild || message.author.bot || !cmd)  
- return;
+  const cmd = client.commands.get(command);
+  
+  const aliases = client.commands.find(x => x.info.aliases.includes(command))
 
-    cmd.run(bot, message, args, functions).catch(e => {return console.log(e)});
 
-} 
+  if(cmd){
+    cmd.run(client, message, args);
+  }else if(aliases){
+    aliases.run(client, message, args);
+  }else return
+};
