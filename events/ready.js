@@ -4,7 +4,7 @@ module.exports = async (bot) => {
 
     console.log("#################################");
     console.log("#################################");
-    console.log("##       JamesDev#0001         ##");
+    console.log("##       Jamesiboi#0001         ##");
     console.log("##       Thicket Development   ##");
     console.log("##           Online            ##");
     console.log("#################################");
@@ -12,7 +12,7 @@ module.exports = async (bot) => {
     console.log('Im online master!')
   const activities_list = [
     `Ping for help`,
-    `t.help | ${bot.users.cache.size} users`,
+    `t.help | A bunch of users`,
     `t.help | ${bot.guilds.cache.size} servers`
 ];
     setInterval(() => {

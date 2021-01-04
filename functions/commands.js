@@ -10,4 +10,5 @@ module.exports.run = (bot) => {
     functions.loadCommands(bot, `${filePath}/Information/`);
     functions.loadCommands(bot, `${filePath}/Administration/`);
     functions.loadCommands(bot, `${filePath}/Vouching/`);
+    functions.loadCommands(bot, `${filePath}/Fun/`);
 }

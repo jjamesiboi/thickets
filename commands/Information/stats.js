@@ -30,13 +30,10 @@ exports.run = async (bot, message, args, functions) => {
       .addField('Aliases', `\`${message.client.aliases.size}\` aliases`, true)
       .addField('Client', `\`\`\`asciidoc\n${clientStats}\`\`\``)
       .addField('Server', `\`\`\`asciidoc\n${serverStats}\`\`\``)
-      .addField(
-        'Links:', 
-        '**[Invite Me](https://www.bit.ly/inviteadbot)**'
-      )
       .setFooter(message.member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
       .setTimestamp()
       .setColor(message.guild.me.displayHexColor);
+      
     message.channel.send(embed);
     }
 exports.help = {

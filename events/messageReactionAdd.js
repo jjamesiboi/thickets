@@ -23,7 +23,7 @@ module.exports = async (bot, reaction, user) => {
   let success = new Discord.MessageEmbed()
   .setColor(color.green)
   .setTitle(`🎟️ | Ticket System`)
-  .setDescription(`Please explain the reason for your request. A member of the team will take care of your ticket shortly.`);
+  .setDescription(`Please explain the reason for your request. A member of the team will take care of your ticket shortly. Note: The maker of the ticket can not close it. This is to prevent spam.`);
 
   let split = '';
   let usr = user.id.split(split);
@@ -35,7 +35,7 @@ module.exports = async (bot, reaction, user) => {
 
         let role = message.guild.roles.cache.find(r => r.name === "Ticket Support");
         if(!role) {
-          message.guild.roles.create({data:{name: "Ticket Support", permissions: 0}, reason: 'Le staff a besoin de ce rôle pour voir les tickets.'});
+          message.guild.roles.create({data:{name: "Ticket Support", permissions: 0}, reason: 'Staff for tickets'});
           message.channel.send(`Please react to the ticket creation message again.
           `).then(m => m.delete({timeout: 5000}).catch(e => {}));
           reaction.users.remove(user.id);
@@ -70,7 +70,7 @@ module.exports = async (bot, reaction, user) => {
         .setTimestamp()
         .setColor(color.none)
         
-        .setFooter(`Système de Ticket`, bot.user.displayAvatarURL())
+        .setFooter(`Ticket System`, bot.user.displayAvatarURL())
         .setDescription(`A user has opened a ticket and is waiting for their request to be processed .`)
         .addField(`Information`, `**User :** \`${user.tag}\`\n**ID :** \`${user.id}\`\n**Ticket :** ${channel}\n**Date :** \`${dateFormat(new Date(), "dd/mm/yyyy - HH:MM:ss")}\``);
 
@@ -91,7 +91,8 @@ module.exports = async (bot, reaction, user) => {
 
   // ========================= //
 
-  if(message.embeds.length === 1 && message.embeds[0].title === '🎟️ | Ticket Terminé' && message.embeds[0].description === `Réagissez avec \\🗑️ pour fermer le ticket ou ne réagissez pas si vous avez d'autres demandes.`){
+  if(message.embeds.length === 1 && message.embeds[0].title === '🎟️ | Ticket Completed' && message.embeds[0].description === `
+  React with \\ 🗑️ to close the ticket, or don't react if you have other requests.`){
     if(reaction.emoji.name === "🗑️"){
       if(user.id === db.get(`ticket.${message.channel.name}.user`)){
 

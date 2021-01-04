@@ -9,7 +9,7 @@ if(message && message.deletable) message.delete().catch(e => {});
 let embed = new Discord.MessageEmbed()
 .setTitle(`Ticket System`)
 .setColor(color.none)
-.setDescription(`React with 🎟️ to create a ticket.`);
+.setDescription(`React with 🎟️ to create a ticket and wait 2-3 seconds.`);
 message.channel.send(embed).then(m => {
   m.react('🎟️');
 });
