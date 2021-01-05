@@ -1,5 +1,5 @@
 # Ticket System | With Reactions
-Here is the code for the [Supporter](https://discord.com/oauth2/authorize?client_id=715856134371803168&scope=bot&permissions=2146958847) bot now open-source.
+Here is the code for the bot now open-source.
 
 You just have to download the project, install the packages presented below and launch your bot. If there is a problem with your bot, do not hesitate to join my [Discord Server](https://discord.gg/XpQG9Cz) and tell me about the problem so that I can help you the best.
 
